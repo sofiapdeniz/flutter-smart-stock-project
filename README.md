@@ -1,0 +1,1 @@
+# flutter-smart-stock-project
