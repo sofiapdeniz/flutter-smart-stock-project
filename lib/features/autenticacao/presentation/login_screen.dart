@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/theme/femme_hub_theme.dart';
+import '../../../router/app_router.dart';
 
 class LoginScreen extends StatefulWidget {
   final String? redirect;
@@ -28,8 +29,9 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_formKey.currentState!.validate()) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('cliente_logado', true);
+      authState.login();
 
-      if (widget.redirect == 'pedido') {
+      if (widget.redirect == 'pedido' || widget.redirect == '/cliente/pedido') {
         if (mounted) context.go('/cliente/pedido');
       } else {
         if (mounted) context.go('/admin');

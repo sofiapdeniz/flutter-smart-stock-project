@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'core/theme/femme_hub_theme.dart';
-import 'core/routes/app_routes.dart';
+import 'router/app_router.dart';
 
 void main() {
   runApp(const FemmeHubApp());
@@ -16,7 +16,7 @@ class FemmeHubApp extends StatelessWidget {
       title: 'FemmeHub',
       debugShowCheckedModeBanner: false,
       theme: FemmeHubTheme.theme,
-      routerConfig: router,
+      routerConfig: appRouter,
     );
   }
 }
@@ -64,7 +64,7 @@ class EscolhaPerfilScreen extends StatelessWidget {
                         title: 'Cliente',
                         subtitle: 'Fazer pedido',
                         cor: FemmeHubTheme.verdeSuave,
-                        onTap: () => context.go('/cliente/pedido'),
+                        onTap: () => context.push('/login?redirect=pedido'),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -147,7 +147,10 @@ class AdminHomeScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sair',
-            onPressed: () => context.go('/escolha'),
+            onPressed: () {
+              authState.logout();
+              context.go('/escolha');
+            },
           ),
         ],
       ),

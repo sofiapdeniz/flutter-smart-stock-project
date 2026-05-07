@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/theme/femme_hub_theme.dart';
+import '../../../router/app_router.dart';
 
 class NovoPedidoScreen extends StatefulWidget {
   final bool isCliente;
@@ -65,6 +66,7 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+    authState.logout();
     if (mounted) context.go('/escolha');
   }
 
@@ -112,10 +114,6 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
       );
       return;
     }
-    if (widget.isCliente && !_clienteLogado) {
-      _mostrarDialogLogin();
-      return;
-    }
     _salvarDadosCliente();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -126,29 +124,6 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
       ),
     );
     setState(() => _itens.clear());
-  }
-
-  void _mostrarDialogLogin() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Login necessário', style: TextStyle(color: Color(0xFFD56989))),
-        content: const Text('Para finalizar o pedido, você precisa estar logada.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              context.go('/login?redirect=pedido');
-            },
-            child: const Text('Fazer Login'),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
