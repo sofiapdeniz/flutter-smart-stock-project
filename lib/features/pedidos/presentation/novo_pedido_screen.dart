@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/theme/femme_hub_theme.dart';
 
 class NovoPedidoScreen extends StatefulWidget {
-  const NovoPedidoScreen({super.key});
+  final bool isCliente;
+  const NovoPedidoScreen({super.key, this.isCliente = false});
 
   @override
   State<NovoPedidoScreen> createState() => _NovoPedidoScreenState();
@@ -19,8 +22,8 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
 
   String _tipoEntrega = 'Entrega';
   final List<_ItemPedidoLocal> _itens = [];
+  bool _clienteLogado = false;
 
-  // Produtos simulados para seleção
   final List<Map<String, dynamic>> _produtosDisponiveis = [
     {'nome': 'Creme Hidratante', 'preco': 45.90},
     {'nome': 'Batom Matte', 'preco': 32.50},
@@ -30,6 +33,40 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
   ];
 
   double get _valorTotal => _itens.fold(0, (sum, item) => sum + (item.preco * item.quantidade));
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarDadosSalvos();
+  }
+
+  Future<void> _carregarDadosSalvos() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _clienteLogado = prefs.getBool('cliente_logado') ?? false;
+      _clienteNomeController.text = prefs.getString('cliente_nome') ?? '';
+      _telefoneController.text = prefs.getString('cliente_telefone') ?? '';
+      _enderecoController.text = prefs.getString('cliente_endereco') ?? '';
+      _bairroController.text = prefs.getString('cliente_bairro') ?? '';
+      _numeroController.text = prefs.getString('cliente_numero') ?? '';
+    });
+  }
+
+  Future<void> _salvarDadosCliente() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('cliente_logado', true);
+    await prefs.setString('cliente_nome', _clienteNomeController.text);
+    await prefs.setString('cliente_telefone', _telefoneController.text);
+    await prefs.setString('cliente_endereco', _enderecoController.text);
+    await prefs.setString('cliente_bairro', _bairroController.text);
+    await prefs.setString('cliente_numero', _numeroController.text);
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    if (mounted) context.go('/escolha');
+  }
 
   @override
   void dispose() {
@@ -75,6 +112,11 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
       );
       return;
     }
+    if (widget.isCliente && !_clienteLogado) {
+      _mostrarDialogLogin();
+      return;
+    }
+    _salvarDadosCliente();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Pedido salvo com sucesso! ✨'),
@@ -83,12 +125,47 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
+    setState(() => _itens.clear());
+  }
+
+  void _mostrarDialogLogin() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Login necessário', style: TextStyle(color: Color(0xFFD56989))),
+        content: const Text('Para finalizar o pedido, você precisa estar logada.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.go('/login?redirect=pedido');
+            },
+            child: const Text('Fazer Login'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Novo Pedido')),
+      appBar: AppBar(
+        title: const Text('Novo Pedido'),
+        actions: widget.isCliente
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.logout),
+                  tooltip: 'Sair',
+                  onPressed: _logout,
+                ),
+              ]
+            : null,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
@@ -159,13 +236,9 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(
-                    child: _buildEntregaChip('Entrega', Icons.delivery_dining),
-                  ),
+                  Expanded(child: _buildEntregaChip('Entrega', Icons.delivery_dining)),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildEntregaChip('Retirada', Icons.store),
-                  ),
+                  Expanded(child: _buildEntregaChip('Retirada', Icons.store)),
                 ],
               ),
               const SizedBox(height: 12),
@@ -290,7 +363,7 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Botão Salvar
+              // Botão Finalizar
               SizedBox(
                 height: 52,
                 child: ElevatedButton.icon(
@@ -348,7 +421,6 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
   }
 }
 
-// Widget do BottomSheet para adicionar item
 class _BottomSheetAdicionarItem extends StatefulWidget {
   final List<Map<String, dynamic>> produtos;
   final void Function(String nome, double preco, int quantidade) onAdicionar;
