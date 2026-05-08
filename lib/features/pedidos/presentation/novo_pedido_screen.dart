@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/theme/femme_hub_theme.dart';
+import '../../../core/widgets/loading_overlay.dart';
+import '../../../core/utils/validadores.dart';
 import '../../../router/app_router.dart';
 
 class NovoPedidoScreen extends StatefulWidget {
@@ -24,6 +26,13 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
   String _tipoEntrega = 'Entrega';
   final List<_ItemPedidoLocal> _itens = [];
   bool _clienteLogado = false;
+  bool _isLoading = false;
+
+  final _nomeFocus = FocusNode();
+  final _telefoneFocus = FocusNode();
+  final _enderecoFocus = FocusNode();
+  final _bairroFocus = FocusNode();
+  final _numeroFocus = FocusNode();
 
   final List<Map<String, dynamic>> _produtosDisponiveis = [
     {'nome': 'Creme Hidratante', 'preco': 45.90},
@@ -77,6 +86,11 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
     _enderecoController.dispose();
     _bairroController.dispose();
     _numeroController.dispose();
+    _nomeFocus.dispose();
+    _telefoneFocus.dispose();
+    _enderecoFocus.dispose();
+    _bairroFocus.dispose();
+    _numeroFocus.dispose();
     super.dispose();
   }
 
@@ -101,7 +115,7 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
     setState(() => _itens.removeAt(index));
   }
 
-  void _salvarPedido() {
+  Future<void> _salvarPedido() async {
     if (!_formKey.currentState!.validate()) return;
     if (_itens.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -114,16 +128,23 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
       );
       return;
     }
-    _salvarDadosCliente();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Pedido salvo com sucesso! ✨'),
-        backgroundColor: FemmeHubTheme.rosaEscuro,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-    setState(() => _itens.clear());
+
+    setState(() => _isLoading = true);
+    await _salvarDadosCliente();
+    await Future.delayed(const Duration(seconds: 2));
+    setState(() => _isLoading = false);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Pedido salvo com sucesso! ✨'),
+          backgroundColor: FemmeHubTheme.rosaEscuro,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      setState(() => _itens.clear());
+    }
   }
 
   @override
@@ -141,14 +162,15 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
               ]
             : null,
       ),
-      body: SingleChildScrollView(
+      body: LoadingOverlay(
+        isLoading: _isLoading,
+        child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -183,30 +205,34 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Seção: Dados da Cliente
               _buildSectionTitle('Dados da Cliente', Icons.person_outline),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _clienteNomeController,
+                focusNode: _nomeFocus,
                 decoration: const InputDecoration(
                   labelText: 'Nome da Cliente',
                   prefixIcon: Icon(Icons.person, color: Color(0xFFD56989)),
                 ),
-                validator: (v) => v == null || v.isEmpty ? 'Informe o nome' : null,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _telefoneFocus.requestFocus(),
+                validator: (v) => Validadores.obrigatorio(v, 'nome'),
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _telefoneController,
+                focusNode: _telefoneFocus,
                 decoration: const InputDecoration(
                   labelText: 'Telefone',
                   prefixIcon: Icon(Icons.phone, color: Color(0xFFD56989)),
                 ),
                 keyboardType: TextInputType.phone,
-                validator: (v) => v == null || v.isEmpty ? 'Informe o telefone' : null,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _enderecoFocus.requestFocus(),
+                validator: Validadores.telefone,
               ),
               const SizedBox(height: 20),
 
-              // Seção: Tipo de Entrega
               _buildSectionTitle('Tipo de Entrega', Icons.local_shipping_outlined),
               const SizedBox(height: 12),
               Row(
@@ -221,10 +247,13 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
               if (_tipoEntrega == 'Entrega') ...[
                 TextFormField(
                   controller: _enderecoController,
+                  focusNode: _enderecoFocus,
                   decoration: const InputDecoration(
                     labelText: 'Endereço',
                     prefixIcon: Icon(Icons.location_on, color: Color(0xFFD56989)),
                   ),
+                  textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) => _bairroFocus.requestFocus(),
                   validator: (v) => _tipoEntrega == 'Entrega' && (v == null || v.isEmpty) ? 'Informe o endereço' : null,
                 ),
                 const SizedBox(height: 12),
@@ -234,10 +263,13 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
                       flex: 3,
                       child: TextFormField(
                         controller: _bairroController,
+                        focusNode: _bairroFocus,
                         decoration: const InputDecoration(
                           labelText: 'Bairro',
                           prefixIcon: Icon(Icons.map, color: Color(0xFFD56989)),
                         ),
+                        textInputAction: TextInputAction.next,
+                        onFieldSubmitted: (_) => _numeroFocus.requestFocus(),
                         validator: (v) =>
                             _tipoEntrega == 'Entrega' && (v == null || v.isEmpty) ? 'Informe o bairro' : null,
                       ),
@@ -247,9 +279,11 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
                       flex: 2,
                       child: TextFormField(
                         controller: _numeroController,
+                        focusNode: _numeroFocus,
                         decoration: const InputDecoration(labelText: 'Nº'),
                         keyboardType: TextInputType.number,
                         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        textInputAction: TextInputAction.done,
                         validator: (v) =>
                             _tipoEntrega == 'Entrega' && (v == null || v.isEmpty) ? 'Nº' : null,
                       ),
@@ -260,7 +294,6 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
               ],
               const SizedBox(height: 8),
 
-              // Seção: Itens do Pedido
               _buildSectionTitle('Itens do Pedido', Icons.shopping_cart_outlined),
               const SizedBox(height: 12),
 
@@ -313,7 +346,6 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Resumo do Pedido
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -338,11 +370,10 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Botão Finalizar
               SizedBox(
                 height: 52,
                 child: ElevatedButton.icon(
-                  onPressed: _salvarPedido,
+                  onPressed: _isLoading ? null : _salvarPedido,
                   icon: const Icon(Icons.check_circle_outline),
                   label: const Text('Finalizar Pedido'),
                 ),
@@ -351,6 +382,7 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

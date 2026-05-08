@@ -7,8 +7,6 @@ import '../features/pedidos/presentation/novo_pedido_screen.dart';
 import '../features/fornecedores/presentation/cadastro_fornecedor_screen.dart';
 import '../main.dart';
 
-// Variável booleana simples para controle de autenticação
-// (autenticação real será implementada no Módulo 11)
 class AuthState extends ChangeNotifier {
   bool _autenticado = false;
 
@@ -31,7 +29,6 @@ final GoRouter appRouter = GoRouter(
   initialLocation: '/escolha',
   refreshListenable: authState,
 
-  // Guard de navegação: redireciona para login se não autenticado
   redirect: (BuildContext context, GoRouterState state) {
     final logado = authState.autenticado;
     final indoParaLogin = state.matchedLocation == '/login';
@@ -39,12 +36,10 @@ final GoRouter appRouter = GoRouter(
     final indoParaEscolha = state.matchedLocation == '/escolha';
     final indoParaCliente = state.matchedLocation == '/cliente/pedido';
 
-    // Rotas públicas: escolha, login e cadastro
     if (indoParaEscolha || indoParaLogin || indoParaCadastro) {
       return null;
     }
 
-    // Se não está logado e tenta acessar rota protegida (admin), redireciona pro login
     if (!logado) {
       return '/login?redirect=${state.matchedLocation}';
     }
@@ -72,7 +67,6 @@ final GoRouter appRouter = GoRouter(
       path: '/admin',
       builder: (context, state) => const AdminHomeScreen(),
       routes: [
-        // Subrotas do admin
         GoRoute(
           path: 'produto',
           builder: (context, state) => const CadastroProdutoScreen(),
@@ -91,7 +85,6 @@ final GoRouter appRouter = GoRouter(
       path: '/cliente/pedido',
       builder: (context, state) => const NovoPedidoScreen(isCliente: true),
     ),
-    // Rotas diretas (mantidas para deep linking)
     GoRoute(
       path: '/produto',
       builder: (context, state) => const CadastroProdutoScreen(),

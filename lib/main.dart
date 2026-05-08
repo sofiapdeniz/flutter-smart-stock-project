@@ -21,7 +21,6 @@ class FemmeHubApp extends StatelessWidget {
   }
 }
 
-// Tela inicial: escolha entre Cliente ou Administrador
 class EscolhaPerfilScreen extends StatelessWidget {
   const EscolhaPerfilScreen({super.key});
 
@@ -55,7 +54,6 @@ class EscolhaPerfilScreen extends StatelessWidget {
                   style: TextStyle(fontSize: 14, color: Colors.black54),
                 ),
                 const SizedBox(height: 36),
-                // Botões lado a lado
                 Row(
                   children: [
                     Expanded(
@@ -134,7 +132,6 @@ class _PerfilCard extends StatelessWidget {
   }
 }
 
-// Home do Administrador
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
 
@@ -159,7 +156,6 @@ class AdminHomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Saudação
             const Text(
               'Olá, Administradora 👋',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -171,7 +167,6 @@ class AdminHomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Grid de ações rápidas
             LayoutBuilder(
               builder: (context, constraints) {
                 final crossCount = constraints.maxWidth > 500 ? 3 : 2;
@@ -213,7 +208,6 @@ class AdminHomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 28),
 
-            // Resumo rápido
             const Text(
               'Resumo',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),

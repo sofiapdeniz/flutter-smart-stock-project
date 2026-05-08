@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/femme_hub_theme.dart';
+import '../../../core/widgets/loading_overlay.dart';
+import '../../../core/utils/validadores.dart';
 
 class CadastroProdutoScreen extends StatefulWidget {
   const CadastroProdutoScreen({super.key});
@@ -16,15 +18,14 @@ class _CadastroProdutoScreenState extends State<CadastroProdutoScreen> {
   final _descricaoController = TextEditingController();
   final _precoController = TextEditingController();
   String _unidadeSelecionada = 'Unidade';
+  bool _isLoading = false;
 
-  final List<String> _unidades = [
-    'Unidade',
-    'Kg',
-    'Litro',
-    'Metro',
-    'Caixa',
-    'Pacote',
-  ];
+  final _nomeFocus = FocusNode();
+  final _codigoFocus = FocusNode();
+  final _descricaoFocus = FocusNode();
+  final _precoFocus = FocusNode();
+
+  final List<String> _unidades = ['Unidade', 'Kg', 'Litro', 'Metro', 'Caixa', 'Pacote'];
 
   @override
   void dispose() {
@@ -32,11 +33,23 @@ class _CadastroProdutoScreenState extends State<CadastroProdutoScreen> {
     _codigoController.dispose();
     _descricaoController.dispose();
     _precoController.dispose();
+    _nomeFocus.dispose();
+    _codigoFocus.dispose();
+    _descricaoFocus.dispose();
+    _precoFocus.dispose();
     super.dispose();
   }
 
-  void _salvarProduto() {
-    if (_formKey.currentState!.validate()) {
+  Future<void> _salvarProduto() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    await Future.delayed(const Duration(seconds: 2));
+
+    setState(() => _isLoading = false);
+
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Produto salvo com sucesso! ✨'),
@@ -51,6 +64,7 @@ class _CadastroProdutoScreenState extends State<CadastroProdutoScreen> {
       _precoController.clear();
       setState(() => _unidadeSelecionada = 'Unidade');
       _formKey.currentState!.reset();
+      _nomeFocus.requestFocus();
     }
   }
 
@@ -58,121 +72,121 @@ class _CadastroProdutoScreenState extends State<CadastroProdutoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Cadastro de Produto')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Header decorativo
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: FemmeHubTheme.rosaPrincipal.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: FemmeHubTheme.rosaEscuro,
-                        borderRadius: BorderRadius.circular(12),
+      body: LoadingOverlay(
+        isLoading: _isLoading,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: FemmeHubTheme.rosaPrincipal.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: FemmeHubTheme.rosaEscuro,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.inventory_2, color: Colors.white, size: 28),
                       ),
-                      child: const Icon(Icons.inventory_2, color: Colors.white, size: 28),
-                    ),
-                    const SizedBox(width: 16),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Novo Produto', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFD56989))),
+                            Text('Preencha os dados do produto', style: TextStyle(fontSize: 13, color: Colors.black54)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                TextFormField(
+                  controller: _nomeController,
+                  focusNode: _nomeFocus,
+                  decoration: const InputDecoration(
+                    labelText: 'Nome do Produto',
+                    prefixIcon: Icon(Icons.shopping_bag_outlined, color: Color(0xFFD56989)),
+                  ),
+                  textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) => _codigoFocus.requestFocus(),
+                  validator: (v) => Validadores.obrigatorio(v, 'nome'),
+                ),
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _codigoController,
+                  focusNode: _codigoFocus,
+                  decoration: const InputDecoration(
+                    labelText: 'Código',
+                    prefixIcon: Icon(Icons.qr_code, color: Color(0xFFD56989)),
+                  ),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) => _descricaoFocus.requestFocus(),
+                  validator: Validadores.codigo,
+                ),
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _descricaoController,
+                  focusNode: _descricaoFocus,
+                  decoration: const InputDecoration(
+                    labelText: 'Descrição',
+                    prefixIcon: Icon(Icons.description_outlined, color: Color(0xFFD56989)),
+                    alignLabelWithHint: true,
+                  ),
+                  maxLines: 3,
+                  textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) => _precoFocus.requestFocus(),
+                  validator: (v) => Validadores.obrigatorio(v, 'descrição'),
+                ),
+                const SizedBox(height: 16),
+
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (constraints.maxWidth > 400) {
+                      return Row(
                         children: [
-                          Text(
-                            'Novo Produto',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFD56989)),
-                          ),
-                          Text(
-                            'Preencha os dados do produto',
-                            style: TextStyle(fontSize: 13, color: Colors.black54),
-                          ),
+                          Expanded(flex: 3, child: _buildCampoPreco()),
+                          const SizedBox(width: 12),
+                          Expanded(flex: 2, child: _buildDropdownUnidade()),
                         ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Campo Nome
-              TextFormField(
-                controller: _nomeController,
-                decoration: const InputDecoration(
-                  labelText: 'Nome do Produto',
-                  prefixIcon: Icon(Icons.shopping_bag_outlined, color: Color(0xFFD56989)),
-                ),
-                validator: (v) => v == null || v.isEmpty ? 'Informe o nome' : null,
-              ),
-              const SizedBox(height: 16),
-
-              // Campo Código
-              TextFormField(
-                controller: _codigoController,
-                decoration: const InputDecoration(
-                  labelText: 'Código',
-                  prefixIcon: Icon(Icons.qr_code, color: Color(0xFFD56989)),
-                ),
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                validator: (v) => v == null || v.isEmpty ? 'Informe o código' : null,
-              ),
-              const SizedBox(height: 16),
-
-              // Campo Descrição
-              TextFormField(
-                controller: _descricaoController,
-                decoration: const InputDecoration(
-                  labelText: 'Descrição',
-                  prefixIcon: Icon(Icons.description_outlined, color: Color(0xFFD56989)),
-                  alignLabelWithHint: true,
-                ),
-                maxLines: 3,
-                validator: (v) => v == null || v.isEmpty ? 'Informe a descrição' : null,
-              ),
-              const SizedBox(height: 16),
-
-              // Preço e Unidade lado a lado
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  if (constraints.maxWidth > 400) {
-                    return Row(
+                      );
+                    }
+                    return Column(
                       children: [
-                        Expanded(flex: 3, child: _buildCampoPreco()),
-                        const SizedBox(width: 12),
-                        Expanded(flex: 2, child: _buildDropdownUnidade()),
+                        _buildCampoPreco(),
+                        const SizedBox(height: 16),
+                        _buildDropdownUnidade(),
                       ],
                     );
-                  }
-                  return Column(
-                    children: [
-                      _buildCampoPreco(),
-                      const SizedBox(height: 16),
-                      _buildDropdownUnidade(),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 32),
-
-              // Botão Salvar
-              SizedBox(
-                height: 52,
-                child: ElevatedButton.icon(
-                  onPressed: _salvarProduto,
-                  icon: const Icon(Icons.save_rounded),
-                  label: const Text('Salvar Produto'),
+                  },
                 ),
-              ),
-            ],
+                const SizedBox(height: 32),
+
+                SizedBox(
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _salvarProduto,
+                    icon: const Icon(Icons.save_rounded),
+                    label: const Text('Salvar Produto'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -182,6 +196,7 @@ class _CadastroProdutoScreenState extends State<CadastroProdutoScreen> {
   Widget _buildCampoPreco() {
     return TextFormField(
       controller: _precoController,
+      focusNode: _precoFocus,
       decoration: const InputDecoration(
         labelText: 'Preço Unitário',
         prefixIcon: Icon(Icons.attach_money, color: Color(0xFFD56989)),
@@ -189,7 +204,8 @@ class _CadastroProdutoScreenState extends State<CadastroProdutoScreen> {
       ),
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}'))],
-      validator: (v) => v == null || v.isEmpty ? 'Informe o preço' : null,
+      textInputAction: TextInputAction.done,
+      validator: Validadores.preco,
     );
   }
 
