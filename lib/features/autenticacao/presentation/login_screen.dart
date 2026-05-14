@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/femme_hub_theme.dart';
 import '../../../core/widgets/loading_overlay.dart';
 import '../../../core/utils/validadores.dart';
-import '../../../router/app_router.dart';
+import '../../../core/providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   final String? redirect;
@@ -39,14 +39,20 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(seconds: 2));
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('cliente_logado', true);
-    authState.login();
+    final tipo = (widget.redirect == 'pedido' || widget.redirect == '/cliente/pedido')
+        ? 'cliente'
+        : 'admin';
+
+    await context.read<AuthProvider>().login(
+          email: _emailController.text,
+          nome: _emailController.text.split('@').first,
+          tipo: tipo,
+        );
 
     setState(() => _isLoading = false);
 
     if (mounted) {
-      if (widget.redirect == 'pedido' || widget.redirect == '/cliente/pedido') {
+      if (tipo == 'cliente') {
         context.go('/cliente/pedido');
       } else {
         context.go('/admin');

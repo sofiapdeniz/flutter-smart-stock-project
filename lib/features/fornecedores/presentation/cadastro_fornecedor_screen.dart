@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/femme_hub_theme.dart';
 import '../../../core/widgets/loading_overlay.dart';
 import '../../../core/utils/validadores.dart';
+import '../../../core/providers/fornecedor_provider.dart';
+import '../../../models/fornecedor.dart';
 
 class CadastroFornecedorScreen extends StatefulWidget {
   const CadastroFornecedorScreen({super.key});
@@ -49,6 +52,19 @@ class _CadastroFornecedorScreenState extends State<CadastroFornecedorScreen> {
     setState(() => _isLoading = false);
 
     if (mounted) {
+      context.read<FornecedorProvider>().adicionarFornecedor(
+            Fornecedor(
+              id: DateTime.now().millisecondsSinceEpoch,
+              nome: _nomeController.text,
+              cnpj: _cnpjController.text,
+              telefone: _telefoneController.text,
+              email: _emailController.text,
+              endereco: _enderecoController.text,
+              dataCriacao: DateTime.now(),
+              dataAtualizacao: DateTime.now(),
+            ),
+          );
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Fornecedor salvo com sucesso! ✨'),

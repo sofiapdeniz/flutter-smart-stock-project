@@ -5,36 +5,19 @@ import '../features/autenticacao/presentation/cadastro_usuario_screen.dart';
 import '../features/produtos/presentation/cadastro_produto_screen.dart';
 import '../features/pedidos/presentation/novo_pedido_screen.dart';
 import '../features/fornecedores/presentation/cadastro_fornecedor_screen.dart';
+import '../core/di/service_locator.dart';
+import '../core/providers/auth_provider.dart';
 import '../main.dart';
-
-class AuthState extends ChangeNotifier {
-  bool _autenticado = false;
-
-  bool get autenticado => _autenticado;
-
-  void login() {
-    _autenticado = true;
-    notifyListeners();
-  }
-
-  void logout() {
-    _autenticado = false;
-    notifyListeners();
-  }
-}
-
-final authState = AuthState();
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/escolha',
-  refreshListenable: authState,
+  refreshListenable: getIt<AuthProvider>(),
 
   redirect: (BuildContext context, GoRouterState state) {
-    final logado = authState.autenticado;
+    final logado = getIt<AuthProvider>().autenticado;
     final indoParaLogin = state.matchedLocation == '/login';
     final indoParaCadastro = state.matchedLocation == '/cadastro';
     final indoParaEscolha = state.matchedLocation == '/escolha';
-    final indoParaCliente = state.matchedLocation == '/cliente/pedido';
 
     if (indoParaEscolha || indoParaLogin || indoParaCadastro) {
       return null;

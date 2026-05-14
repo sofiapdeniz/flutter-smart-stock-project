@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/femme_hub_theme.dart';
 import '../../../core/widgets/loading_overlay.dart';
 import '../../../core/utils/validadores.dart';
+import '../../../core/providers/produto_provider.dart';
+import '../../../models/produto.dart';
 
 class CadastroProdutoScreen extends StatefulWidget {
   const CadastroProdutoScreen({super.key});
@@ -50,6 +53,19 @@ class _CadastroProdutoScreenState extends State<CadastroProdutoScreen> {
     setState(() => _isLoading = false);
 
     if (mounted) {
+      context.read<ProdutoProvider>().adicionarProduto(
+            Produto(
+              id: DateTime.now().millisecondsSinceEpoch,
+              nome: _nomeController.text,
+              codigo: int.parse(_codigoController.text),
+              descricao: _descricaoController.text,
+              precoUnitario: double.parse(_precoController.text),
+              unidadeMedida: _unidadeSelecionada,
+              dataCriacao: DateTime.now(),
+              dataAtualizacao: DateTime.now(),
+            ),
+          );
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Produto salvo com sucesso! ✨'),

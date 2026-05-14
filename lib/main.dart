@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'core/theme/femme_hub_theme.dart';
+import 'core/di/service_locator.dart';
+import 'core/providers/auth_provider.dart';
+import 'core/providers/produto_provider.dart';
+import 'core/providers/pedido_provider.dart';
+import 'core/providers/fornecedor_provider.dart';
 import 'router/app_router.dart';
 
 void main() {
+  setupServiceLocator();
   runApp(const FemmeHubApp());
 }
 
@@ -12,11 +19,19 @@ class FemmeHubApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'FemmeHub',
-      debugShowCheckedModeBanner: false,
-      theme: FemmeHubTheme.theme,
-      routerConfig: appRouter,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: getIt<AuthProvider>()),
+        ChangeNotifierProvider.value(value: getIt<ProdutoProvider>()),
+        ChangeNotifierProvider.value(value: getIt<PedidoProvider>()),
+        ChangeNotifierProvider.value(value: getIt<FornecedorProvider>()),
+      ],
+      child: MaterialApp.router(
+        title: 'FemmeHub',
+        debugShowCheckedModeBanner: false,
+        theme: FemmeHubTheme.theme,
+        routerConfig: appRouter,
+      ),
     );
   }
 }
@@ -137,6 +152,8 @@ class AdminHomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('FemmeHub'),
@@ -145,7 +162,7 @@ class AdminHomeScreen extends StatelessWidget {
             icon: const Icon(Icons.logout),
             tooltip: 'Sair',
             onPressed: () {
-              authState.logout();
+              context.read<AuthProvider>().logout();
               context.go('/escolha');
             },
           ),
@@ -156,9 +173,9 @@ class AdminHomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Olá, Administradora 👋',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            Text(
+              'Olá, ${auth.nome.isNotEmpty ? auth.nome : 'Administradora'} 👋',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
             const Text(
@@ -213,35 +230,39 @@ class AdminHomeScreen extends StatelessWidget {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _ResumoCard(
-                    label: 'Produtos',
-                    valor: '12',
-                    icon: Icons.inventory_2,
-                    cor: FemmeHubTheme.rosaEscuro,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _ResumoCard(
-                    label: 'Pedidos',
-                    valor: '5',
-                    icon: Icons.receipt,
-                    cor: FemmeHubTheme.verdeSuave,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _ResumoCard(
-                    label: 'Fornecedores',
-                    valor: '3',
-                    icon: Icons.business,
-                    cor: FemmeHubTheme.rosaPrincipal,
-                  ),
-                ),
-              ],
+            Consumer3<ProdutoProvider, PedidoProvider, FornecedorProvider>(
+              builder: (context, produtoP, pedidoP, fornecedorP, _) {
+                return Row(
+                  children: [
+                    Expanded(
+                      child: _ResumoCard(
+                        label: 'Produtos',
+                        valor: '${produtoP.totalProdutos}',
+                        icon: Icons.inventory_2,
+                        cor: FemmeHubTheme.rosaEscuro,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _ResumoCard(
+                        label: 'Pedidos',
+                        valor: '${pedidoP.totalPedidos}',
+                        icon: Icons.receipt,
+                        cor: FemmeHubTheme.verdeSuave,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _ResumoCard(
+                        label: 'Fornecedores',
+                        valor: '${fornecedorP.totalFornecedores}',
+                        icon: Icons.business,
+                        cor: FemmeHubTheme.rosaPrincipal,
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ],
         ),

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/theme/femme_hub_theme.dart';
 import '../../../core/widgets/loading_overlay.dart';
 import '../../../core/utils/validadores.dart';
-import '../../../router/app_router.dart';
+import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/pedido_provider.dart';
 
 class NovoPedidoScreen extends StatefulWidget {
   final bool isCliente;
@@ -24,8 +26,6 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
   final _numeroController = TextEditingController();
 
   String _tipoEntrega = 'Entrega';
-  final List<_ItemPedidoLocal> _itens = [];
-  bool _clienteLogado = false;
   bool _isLoading = false;
 
   final _nomeFocus = FocusNode();
@@ -42,8 +42,6 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
     {'nome': 'Esmalte Gel', 'preco': 18.00},
   ];
 
-  double get _valorTotal => _itens.fold(0, (sum, item) => sum + (item.preco * item.quantidade));
-
   @override
   void initState() {
     super.initState();
@@ -53,7 +51,6 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
   Future<void> _carregarDadosSalvos() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _clienteLogado = prefs.getBool('cliente_logado') ?? false;
       _clienteNomeController.text = prefs.getString('cliente_nome') ?? '';
       _telefoneController.text = prefs.getString('cliente_telefone') ?? '';
       _enderecoController.text = prefs.getString('cliente_endereco') ?? '';
@@ -64,7 +61,6 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
 
   Future<void> _salvarDadosCliente() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('cliente_logado', true);
     await prefs.setString('cliente_nome', _clienteNomeController.text);
     await prefs.setString('cliente_telefone', _telefoneController.text);
     await prefs.setString('cliente_endereco', _enderecoController.text);
@@ -73,9 +69,7 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
   }
 
   Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-    authState.logout();
+    await context.read<AuthProvider>().logout();
     if (mounted) context.go('/escolha');
   }
 
@@ -104,20 +98,18 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
       builder: (ctx) => _BottomSheetAdicionarItem(
         produtos: _produtosDisponiveis,
         onAdicionar: (nome, preco, qtd) {
-          setState(() => _itens.add(_ItemPedidoLocal(nome: nome, preco: preco, quantidade: qtd)));
+          context.read<PedidoProvider>().adicionarItem(nome, preco, qtd);
           Navigator.pop(ctx);
         },
       ),
     );
   }
 
-  void _removerItem(int index) {
-    setState(() => _itens.removeAt(index));
-  }
-
   Future<void> _salvarPedido() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_itens.isEmpty) {
+
+    final pedidoProvider = context.read<PedidoProvider>();
+    if (pedidoProvider.itensCarrinho.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Adicione pelo menos um item ao pedido'),
@@ -132,6 +124,16 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
     setState(() => _isLoading = true);
     await _salvarDadosCliente();
     await Future.delayed(const Duration(seconds: 2));
+
+    pedidoProvider.finalizarPedido(
+      clienteNome: _clienteNomeController.text,
+      telefone: _telefoneController.text,
+      tipoEntrega: _tipoEntrega,
+      endereco: _enderecoController.text,
+      bairro: _bairroController.text,
+      numero: _numeroController.text,
+    );
+
     setState(() => _isLoading = false);
 
     if (mounted) {
@@ -143,7 +145,6 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
-      setState(() => _itens.clear());
     }
   }
 
@@ -165,224 +166,225 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
       body: LoadingOverlay(
         isLoading: _isLoading,
         child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: FemmeHubTheme.verdeSuave.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: FemmeHubTheme.rosaEscuro,
-                        borderRadius: BorderRadius.circular(12),
+          padding: const EdgeInsets.all(20),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: FemmeHubTheme.verdeSuave.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: FemmeHubTheme.rosaEscuro,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.receipt_long, color: Colors.white, size: 28),
                       ),
-                      child: const Icon(Icons.receipt_long, color: Colors.white, size: 28),
-                    ),
-                    const SizedBox(width: 16),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Novo Pedido',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFD56989)),
-                          ),
-                          Text('Preencha os dados do pedido', style: TextStyle(fontSize: 13, color: Colors.black54)),
-                        ],
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Novo Pedido', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFD56989))),
+                            Text('Preencha os dados do pedido', style: TextStyle(fontSize: 13, color: Colors.black54)),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              _buildSectionTitle('Dados da Cliente', Icons.person_outline),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _clienteNomeController,
-                focusNode: _nomeFocus,
-                decoration: const InputDecoration(
-                  labelText: 'Nome da Cliente',
-                  prefixIcon: Icon(Icons.person, color: Color(0xFFD56989)),
-                ),
-                textInputAction: TextInputAction.next,
-                onFieldSubmitted: (_) => _telefoneFocus.requestFocus(),
-                validator: (v) => Validadores.obrigatorio(v, 'nome'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _telefoneController,
-                focusNode: _telefoneFocus,
-                decoration: const InputDecoration(
-                  labelText: 'Telefone',
-                  prefixIcon: Icon(Icons.phone, color: Color(0xFFD56989)),
-                ),
-                keyboardType: TextInputType.phone,
-                textInputAction: TextInputAction.next,
-                onFieldSubmitted: (_) => _enderecoFocus.requestFocus(),
-                validator: Validadores.telefone,
-              ),
-              const SizedBox(height: 20),
-
-              _buildSectionTitle('Tipo de Entrega', Icons.local_shipping_outlined),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(child: _buildEntregaChip('Entrega', Icons.delivery_dining)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _buildEntregaChip('Retirada', Icons.store)),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              if (_tipoEntrega == 'Entrega') ...[
+                _buildSectionTitle('Dados da Cliente', Icons.person_outline),
+                const SizedBox(height: 12),
                 TextFormField(
-                  controller: _enderecoController,
-                  focusNode: _enderecoFocus,
+                  controller: _clienteNomeController,
+                  focusNode: _nomeFocus,
                   decoration: const InputDecoration(
-                    labelText: 'Endereço',
-                    prefixIcon: Icon(Icons.location_on, color: Color(0xFFD56989)),
+                    labelText: 'Nome da Cliente',
+                    prefixIcon: Icon(Icons.person, color: Color(0xFFD56989)),
                   ),
                   textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) => _bairroFocus.requestFocus(),
-                  validator: (v) => _tipoEntrega == 'Entrega' && (v == null || v.isEmpty) ? 'Informe o endereço' : null,
+                  onFieldSubmitted: (_) => _telefoneFocus.requestFocus(),
+                  validator: (v) => Validadores.obrigatorio(v, 'nome'),
                 ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _telefoneController,
+                  focusNode: _telefoneFocus,
+                  decoration: const InputDecoration(
+                    labelText: 'Telefone',
+                    prefixIcon: Icon(Icons.phone, color: Color(0xFFD56989)),
+                  ),
+                  keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) => _enderecoFocus.requestFocus(),
+                  validator: Validadores.telefone,
+                ),
+                const SizedBox(height: 20),
+
+                _buildSectionTitle('Tipo de Entrega', Icons.local_shipping_outlined),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(
-                      flex: 3,
-                      child: TextFormField(
-                        controller: _bairroController,
-                        focusNode: _bairroFocus,
-                        decoration: const InputDecoration(
-                          labelText: 'Bairro',
-                          prefixIcon: Icon(Icons.map, color: Color(0xFFD56989)),
-                        ),
-                        textInputAction: TextInputAction.next,
-                        onFieldSubmitted: (_) => _numeroFocus.requestFocus(),
-                        validator: (v) =>
-                            _tipoEntrega == 'Entrega' && (v == null || v.isEmpty) ? 'Informe o bairro' : null,
-                      ),
-                    ),
+                    Expanded(child: _buildEntregaChip('Entrega', Icons.delivery_dining)),
                     const SizedBox(width: 12),
-                    Expanded(
-                      flex: 2,
-                      child: TextFormField(
-                        controller: _numeroController,
-                        focusNode: _numeroFocus,
-                        decoration: const InputDecoration(labelText: 'Nº'),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                        textInputAction: TextInputAction.done,
-                        validator: (v) =>
-                            _tipoEntrega == 'Entrega' && (v == null || v.isEmpty) ? 'Nº' : null,
-                      ),
-                    ),
+                    Expanded(child: _buildEntregaChip('Retirada', Icons.store)),
                   ],
                 ),
                 const SizedBox(height: 12),
-              ],
-              const SizedBox(height: 8),
 
-              _buildSectionTitle('Itens do Pedido', Icons.shopping_cart_outlined),
-              const SizedBox(height: 12),
-
-              if (_itens.isEmpty)
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: FemmeHubTheme.rosaPrincipal.withOpacity(0.3)),
+                if (_tipoEntrega == 'Entrega') ...[
+                  TextFormField(
+                    controller: _enderecoController,
+                    focusNode: _enderecoFocus,
+                    decoration: const InputDecoration(
+                      labelText: 'Endereço',
+                      prefixIcon: Icon(Icons.location_on, color: Color(0xFFD56989)),
+                    ),
+                    textInputAction: TextInputAction.next,
+                    onFieldSubmitted: (_) => _bairroFocus.requestFocus(),
+                    validator: (v) => _tipoEntrega == 'Entrega' && (v == null || v.isEmpty) ? 'Informe o endereço' : null,
                   ),
-                  child: const Column(
+                  const SizedBox(height: 12),
+                  Row(
                     children: [
-                      Icon(Icons.add_shopping_cart, size: 40, color: Color(0xFFE99CAE)),
-                      SizedBox(height: 8),
-                      Text('Nenhum item adicionado', style: TextStyle(color: Colors.black54)),
+                      Expanded(
+                        flex: 3,
+                        child: TextFormField(
+                          controller: _bairroController,
+                          focusNode: _bairroFocus,
+                          decoration: const InputDecoration(
+                            labelText: 'Bairro',
+                            prefixIcon: Icon(Icons.map, color: Color(0xFFD56989)),
+                          ),
+                          textInputAction: TextInputAction.next,
+                          onFieldSubmitted: (_) => _numeroFocus.requestFocus(),
+                          validator: (v) => _tipoEntrega == 'Entrega' && (v == null || v.isEmpty) ? 'Informe o bairro' : null,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: TextFormField(
+                          controller: _numeroController,
+                          focusNode: _numeroFocus,
+                          decoration: const InputDecoration(labelText: 'Nº'),
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          textInputAction: TextInputAction.done,
+                          validator: (v) => _tipoEntrega == 'Entrega' && (v == null || v.isEmpty) ? 'Nº' : null,
+                        ),
+                      ),
                     ],
                   ),
-                )
-              else
-                ...List.generate(_itens.length, (i) {
-                  final item = _itens[i];
-                  return Card(
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: FemmeHubTheme.rosaPrincipal.withOpacity(0.2),
-                        child: const Icon(Icons.shopping_bag, color: Color(0xFFD56989), size: 20),
-                      ),
-                      title: Text(item.nome, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: Text('${item.quantidade}x  •  R\$ ${item.preco.toStringAsFixed(2)}'),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
-                        onPressed: () => _removerItem(i),
-                      ),
-                    ),
-                  );
-                }),
+                  const SizedBox(height: 12),
+                ],
+                const SizedBox(height: 8),
 
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _adicionarItem,
-                icon: const Icon(Icons.add),
-                label: const Text('Adicionar Item'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: FemmeHubTheme.rosaEscuro,
-                  side: const BorderSide(color: Color(0xFFD56989)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-              const SizedBox(height: 24),
+                _buildSectionTitle('Itens do Pedido', Icons.shopping_cart_outlined),
+                const SizedBox(height: 12),
 
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: FemmeHubTheme.rosaEscuro.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: FemmeHubTheme.rosaEscuro.withOpacity(0.3)),
+                Consumer<PedidoProvider>(
+                  builder: (context, pedidoP, _) {
+                    if (pedidoP.itensCarrinho.isEmpty) {
+                      return Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: FemmeHubTheme.rosaPrincipal.withOpacity(0.3)),
+                        ),
+                        child: const Column(
+                          children: [
+                            Icon(Icons.add_shopping_cart, size: 40, color: Color(0xFFE99CAE)),
+                            SizedBox(height: 8),
+                            Text('Nenhum item adicionado', style: TextStyle(color: Colors.black54)),
+                          ],
+                        ),
+                      );
+                    }
+                    return Column(
+                      children: List.generate(pedidoP.itensCarrinho.length, (i) {
+                        final item = pedidoP.itensCarrinho[i];
+                        return Card(
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: FemmeHubTheme.rosaPrincipal.withOpacity(0.2),
+                              child: const Icon(Icons.shopping_bag, color: Color(0xFFD56989), size: 20),
+                            ),
+                            title: Text(item.nome, style: const TextStyle(fontWeight: FontWeight.w600)),
+                            subtitle: Text('${item.quantidade}x  •  R\$ ${item.preco.toStringAsFixed(2)}'),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              onPressed: () => context.read<PedidoProvider>().removerItem(i),
+                            ),
+                          ),
+                        );
+                      }),
+                    );
+                  },
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Total do Pedido', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                    Text(
-                      'R\$ ${_valorTotal.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFFD56989),
+
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _adicionarItem,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Adicionar Item'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: FemmeHubTheme.rosaEscuro,
+                    side: const BorderSide(color: Color(0xFFD56989)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                Consumer<PedidoProvider>(
+                  builder: (context, pedidoP, _) {
+                    return Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: FemmeHubTheme.rosaEscuro.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: FemmeHubTheme.rosaEscuro.withOpacity(0.3)),
                       ),
-                    ),
-                  ],
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Total do Pedido', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                          Text(
+                            'R\$ ${pedidoP.valorTotal.toStringAsFixed(2)}',
+                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFFD56989)),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
-              ),
-              const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-              SizedBox(
-                height: 52,
-                child: ElevatedButton.icon(
-                  onPressed: _isLoading ? null : _salvarPedido,
-                  icon: const Icon(Icons.check_circle_outline),
-                  label: const Text('Finalizar Pedido'),
+                SizedBox(
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _salvarPedido,
+                    icon: const Icon(Icons.check_circle_outline),
+                    label: const Text('Finalizar Pedido'),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-            ],
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -513,11 +515,4 @@ class _BottomSheetAdicionarItemState extends State<_BottomSheetAdicionarItem> {
       ),
     );
   }
-}
-
-class _ItemPedidoLocal {
-  final String nome;
-  final double preco;
-  final int quantidade;
-  _ItemPedidoLocal({required this.nome, required this.preco, required this.quantidade});
 }
