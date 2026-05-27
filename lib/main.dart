@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'core/theme/femme_hub_theme.dart';
 import 'core/di/service_locator.dart';
 import 'core/providers/auth_provider.dart';
@@ -10,6 +13,13 @@ import 'core/providers/fornecedor_provider.dart';
 import 'router/app_router.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  if (kIsWeb) {
+    databaseFactory = databaseFactoryFfiWeb;
+  } else {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
   setupServiceLocator();
   runApp(const FemmeHubApp());
 }
@@ -147,8 +157,23 @@ class _PerfilCard extends StatelessWidget {
   }
 }
 
-class AdminHomeScreen extends StatelessWidget {
+class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
+
+  @override
+  State<AdminHomeScreen> createState() => _AdminHomeScreenState();
+}
+
+class _AdminHomeScreenState extends State<AdminHomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      context.read<ProdutoProvider>().carregarProdutos();
+      context.read<PedidoProvider>().carregarPedidos();
+      context.read<FornecedorProvider>().carregarFornecedores();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

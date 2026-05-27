@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/femme_hub_theme.dart';
 import '../../../core/widgets/loading_overlay.dart';
 import '../../../core/utils/validadores.dart';
+import '../../../core/providers/auth_provider.dart';
 
 class CadastroUsuarioScreen extends StatefulWidget {
   const CadastroUsuarioScreen({super.key});
@@ -42,27 +44,46 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 2));
+
+    final sucesso = await context.read<AuthProvider>().cadastrar(
+          nome: _nomeController.text,
+          email: _emailController.text,
+          senha: _senhaController.text,
+          tipo: 'cliente',
+        );
+
     setState(() => _isLoading = false);
 
-    if (mounted) {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Conta criada! 🎉', style: TextStyle(color: Color(0xFFD56989))),
-          content: const Text('Sua conta foi criada com sucesso. Faça login para continuar.'),
-          actions: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                context.go('/login');
-              },
-              child: const Text('Ir para Login'),
-            ),
-          ],
+    if (!mounted) return;
+
+    if (!sucesso) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Email já cadastrado'),
+          backgroundColor: Colors.red[700],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
+      return;
     }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Conta criada! 🎉', style: TextStyle(color: Color(0xFFD56989))),
+        content: const Text('Sua conta foi criada com sucesso. Faça login para continuar.'),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.go('/login');
+            },
+            child: const Text('Ir para Login'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

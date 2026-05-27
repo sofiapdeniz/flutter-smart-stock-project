@@ -69,7 +69,7 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
   }
 
   Future<void> _logout() async {
-    await context.read<AuthProvider>().logout();
+    context.read<AuthProvider>().logout();
     if (mounted) context.go('/escolha');
   }
 
@@ -125,13 +125,10 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
     await _salvarDadosCliente();
     await Future.delayed(const Duration(seconds: 2));
 
-    pedidoProvider.finalizarPedido(
-      clienteNome: _clienteNomeController.text,
-      telefone: _telefoneController.text,
-      tipoEntrega: _tipoEntrega,
-      endereco: _enderecoController.text,
-      bairro: _bairroController.text,
-      numero: _numeroController.text,
+    final auth = context.read<AuthProvider>();
+    await pedidoProvider.finalizarPedido(
+      usuarioId: auth.usuarioId,
+      tipoEntrega: _tipoEntrega.toLowerCase(),
     );
 
     setState(() => _isLoading = false);

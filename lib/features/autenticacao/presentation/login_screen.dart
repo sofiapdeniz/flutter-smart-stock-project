@@ -37,19 +37,31 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 2));
+
+    final sucesso = await context.read<AuthProvider>().login(
+          email: _emailController.text,
+          senha: _senhaController.text,
+        );
+
+    setState(() => _isLoading = false);
+
+    if (!sucesso) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Email ou senha incorretos'),
+            backgroundColor: Colors.red[700],
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+      return;
+    }
 
     final tipo = (widget.redirect == 'pedido' || widget.redirect == '/cliente/pedido')
         ? 'cliente'
         : 'admin';
-
-    await context.read<AuthProvider>().login(
-          email: _emailController.text,
-          nome: _emailController.text.split('@').first,
-          tipo: tipo,
-        );
-
-    setState(() => _isLoading = false);
 
     if (mounted) {
       if (tipo == 'cliente') {
