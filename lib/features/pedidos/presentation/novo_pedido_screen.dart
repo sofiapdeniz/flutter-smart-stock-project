@@ -127,8 +127,12 @@ class _NovoPedidoScreenState extends State<NovoPedidoScreen> {
 
     final auth = context.read<AuthProvider>();
     await pedidoProvider.finalizarPedido(
-      usuarioId: auth.usuarioId,
-      tipoEntrega: _tipoEntrega.toLowerCase(),
+      clienteNome: _clienteNomeController.text,
+      telefone: _telefoneController.text,
+      tipoEntrega: _tipoEntrega,
+      endereco: _enderecoController.text,
+      bairro: _bairroController.text,
+      numero: _numeroController.text,
     );
 
     setState(() => _isLoading = false);

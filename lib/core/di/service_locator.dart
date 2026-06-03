@@ -3,6 +3,9 @@ import '../providers/auth_provider.dart';
 import '../providers/produto_provider.dart';
 import '../providers/pedido_provider.dart';
 import '../providers/fornecedor_provider.dart';
+import '../../data/services/produto_service.dart';
+import '../../data/services/fornecedor_service.dart';
+import '../../data/services/pedido_venda_service.dart';
 import '../../data/repositories/usuario_repository.dart';
 import '../../data/repositories/produto_repository.dart';
 import '../../data/repositories/fornecedor_repository.dart';
@@ -13,6 +16,10 @@ import '../../data/repositories/endereco_repository.dart';
 final getIt = GetIt.instance;
 
 void setupServiceLocator() {
+  getIt.registerLazySingleton<ProdutoService>(() => ProdutoService());
+  getIt.registerLazySingleton<FornecedorService>(() => FornecedorService());
+  getIt.registerLazySingleton<PedidoVendaService>(() => PedidoVendaService());
+
   getIt.registerLazySingleton<UsuarioRepository>(() => UsuarioRepository());
   getIt.registerLazySingleton<ProdutoRepository>(() => ProdutoRepository());
   getIt.registerLazySingleton<FornecedorRepository>(() => FornecedorRepository());

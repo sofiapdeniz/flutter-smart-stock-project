@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../data/repositories/pedido_repository.dart';
-import '../../data/repositories/item_pedido_repository.dart';
+import '../../models/pedido_venda.dart';
+import '../../data/services/pedido_venda_service.dart';
+import '../di/service_locator.dart';
 
 class ItemCarrinho {
   final String nome;
@@ -12,21 +13,34 @@ class ItemCarrinho {
 }
 
 class PedidoProvider extends ChangeNotifier {
-  final PedidoRepository _pedidoRepository = PedidoRepository();
-  final ItemPedidoRepository _itemRepository = ItemPedidoRepository();
+  final PedidoVendaService _service = getIt<PedidoVendaService>();
 
   final List<ItemCarrinho> _itensCarrinho = [];
-  List<Map<String, dynamic>> _pedidosFinalizados = [];
+  List<PedidoVenda> _pedidosFinalizados = [];
+  bool _carregando = false;
+  String? _erro;
 
   List<ItemCarrinho> get itensCarrinho => List.unmodifiable(_itensCarrinho);
-  List<Map<String, dynamic>> get pedidosFinalizados => List.unmodifiable(_pedidosFinalizados);
+  List<PedidoVenda> get pedidosFinalizados => List.unmodifiable(_pedidosFinalizados);
   int get totalPedidos => _pedidosFinalizados.length;
+  bool get carregando => _carregando;
+  String? get erro => _erro;
 
   double get valorTotal =>
       _itensCarrinho.fold(0, (sum, item) => sum + (item.preco * item.quantidade));
 
   Future<void> carregarPedidos() async {
-    _pedidosFinalizados = await _pedidoRepository.buscarTodos();
+    _carregando = true;
+    _erro = null;
+    notifyListeners();
+
+    try {
+      _pedidosFinalizados = await _service.buscarTodos();
+    } catch (_) {
+      _erro = 'Sem conexão';
+    }
+
+    _carregando = false;
     notifyListeners();
   }
 
@@ -45,29 +59,37 @@ class PedidoProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> finalizarPedido({
-    required int usuarioId,
+  Future<bool> finalizarPedido({
+    required String clienteNome,
+    required String telefone,
     required String tipoEntrega,
-    int? enderecoId,
+    String? endereco,
+    String? bairro,
+    String? numero,
   }) async {
-    final pedidoId = await _pedidoRepository.inserir({
-      'usuario_id': usuarioId,
-      'endereco_id': enderecoId,
-      'tipo_entrega': tipoEntrega,
-      'valor_total': valorTotal,
-      'data_criacao': DateTime.now().toIso8601String(),
-    });
+    try {
+      await _service.criar(
+        clienteNome: clienteNome,
+        tipoEntrega: tipoEntrega.toLowerCase() == 'entrega' ? 0 : 1,
+        enderecoEntrega: endereco ?? '',
+        bairroEntrega: bairro ?? '',
+        numeroEnderecoEntrega: int.tryParse(numero ?? '0') ?? 0,
+        telefoneCliente: telefone,
+        itens: _itensCarrinho.map((item) => {
+          'produtoId': item.produtoId ?? 0,
+          'quantidade': item.quantidade,
+          'precoUnitario': item.preco,
+          'unidadeMedida': 'UN',
+        }).toList(),
+      );
 
-    for (final item in _itensCarrinho) {
-      await _itemRepository.inserir({
-        'pedido_id': pedidoId,
-        'produto_id': item.produtoId ?? 0,
-        'quantidade': item.quantidade,
-        'preco_unitario': item.preco,
-      });
+      _itensCarrinho.clear();
+      await carregarPedidos();
+      return true;
+    } catch (_) {
+      _itensCarrinho.clear();
+      notifyListeners();
+      return false;
     }
-
-    _itensCarrinho.clear();
-    await carregarPedidos();
   }
 }
